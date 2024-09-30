@@ -37,8 +37,6 @@
 ////    @Value("${food.data.api.url}")
 //    private static String apiUrl = "https://api.nal.usda.gov/fdc/v1";
 //
-////    @Value("${food.data.api.key}")
-//    private static String apiKey = "EhjNU9TxV089w4KTSQy1WIUOvBvJ5vt6xr7SgeoR";
 //
 //    @Autowired
 //    private RestTemplate restTemplate;
