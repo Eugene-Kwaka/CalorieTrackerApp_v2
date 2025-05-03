@@ -2,18 +2,16 @@ package com.eugene.services.impl;
 
 import com.eugene.dto.UserDTO;
 import com.eugene.exceptions.userexceptions.InvalidUserCredentialsException;
+import com.eugene.exceptions.userexceptions.UserCreationFailedException;
+import com.eugene.exceptions.userexceptions.UserDeletionFailedException;
+import com.eugene.exceptions.userexceptions.UserLoginAttemptFailedException;
 import com.eugene.exceptions.userexceptions.UserNotFoundException;
+import com.eugene.exceptions.userexceptions.UserUpdateFailedException;
 import com.eugene.exceptions.userexceptions.UsernameAlreadyExistsException;
 import com.eugene.services.UserService;
-//import org.springframework.security.authentication.AuthenticationManager;
-//import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.stereotype.Service;
 import com.eugene.models.User;
 import com.eugene.repositories.UserRepo;
-import org.springframework.beans.factory.annotation.Autowired;
-//import org.springframework.security.core.userdetails.UserDetails;
-//import org.springframework.security.core.userdetails.UsernameNotFoundException;
-//import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -33,7 +31,6 @@ public class UserServiceImpl implements UserService {
     // initiate UserRepository
     private final UserRepo userRepository;
 
-    @Autowired
     /*
      * The UserRepository interface is injected as a dependency (@autowired) to this class using Constructor injection.*/
     public UserServiceImpl(UserRepo userRepository){
@@ -52,25 +49,32 @@ public class UserServiceImpl implements UserService {
          * If an existing user is found, throw a usernameAlreadyExistsException.
          */
         if(userRepository.findByUsername(userDTO.getUsername()).isPresent()){
-            throw new UsernameAlreadyExistsException("Username already exists");
+            throw new UsernameAlreadyExistsException("User already exists");
         }
 
-        /* This creates a new userEntity object from the convertUserDTOToUserEntity(userDTO) method using the userDTO object parameter.
-         * The .builder() methods creates a builder object for constructing the userEntity object.
-         * I get the username and the password from the userDTO.
-         * The build() method is called to create the UserEntity instance.
-         */
-        User user = convertUserDTOToUserEntity(userDTO);
+        try{
+            /* This creates a new userEntity object from the convertUserDTOToUserEntity(userDTO) method using the userDTO object parameter.
+            * The .builder() methods creates a builder object for constructing the userEntity object.
+            * I get the username and the password from the userDTO.
+            * The build() method is called to create the UserEntity instance.
+            */
+            User user = convertUserDTOToUserEntity(userDTO);
 
-        // This line saves the new UserEntity instance to the database using the UserRepository.save() method.
-        // The save method returns the saved UserEntity instance, which is stored in the savedUser variable.
-        User savedUser = userRepository.save(user);
+            // This line saves the new UserEntity instance to the database using the UserRepository.save() method.
+            // The save method returns the saved UserEntity instance, which is stored in the savedUser variable.
+            User savedUser = userRepository.save(user);
 
-        /* Using the convertUserEntityToUserDTO() method, we convert the savedUser entity object to a userDTO object
-         - Entity object is saved in the DB while its corresponding DTO will be the return value.
-         - The converted UserDTO object is returned as the result of the registerUser method.
-        */
-        return convertUserEntityToUserDTO(savedUser);
+            /* Using the convertUserEntityToUserDTO() method, we convert the savedUser entity object to a userDTO object
+            - Entity object is saved in the DB while its corresponding DTO will be the return value.
+             - The converted UserDTO object is returned as the result of the registerUser method.
+            */
+            return convertUserEntityToUserDTO(savedUser);
+        }
+        catch (Exception e){
+            throw new UserCreationFailedException ("Failed to create a new user." + e.getMessage());
+        }
+
+        
     }
 
     @Override
@@ -82,13 +86,17 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findByUsername(userDTO.getUsername())
                 .orElseThrow(() -> new UserNotFoundException("User not found"));
 
-        // if the userEntity object's password in the database DOES NOT MATCH the password provided by the user trying to log in, return an exception.
-        if (!user.getPassword().equals(userDTO.getPassword())) {
-            throw new InvalidUserCredentialsException("Invalid login details used! Try again.");
+        try{
+            // if the userEntity object's password in the database DOES NOT MATCH the password provided by the user trying to log in, return an exception.
+            if (!user.getPassword().equals(userDTO.getPassword())) {
+                throw new InvalidUserCredentialsException("Invalid login details used! Try again.");
+            }
+            // Otherwise, if they exist, convert and return the retrieved userEntity as a userDTO object.
+            return convertUserEntityToUserDTO(user);
         }
-
-        // Otherwise, if they exist, convert and return the retrieved userEntity as a userDTO object.
-        return convertUserEntityToUserDTO(user);
+        catch (Exception e){
+            throw new UserLoginAttemptFailedException("Failed to log in." + e.getMessage());
+        }
     }
 
     @Override
@@ -123,39 +131,51 @@ public class UserServiceImpl implements UserService {
         User userEntity = userRepository.findById(uId)
                 .orElseThrow(() -> new UserNotFoundException("User not found"));
 
-        // This code checks if the new username is different from the existing username and if a user with the new username already exists.
-        // If true, throw an error.
-        // This code ensures a user does not update their username to a username that already exists with another user.
-        if (!userEntity.getUsername().equals(userDTO.getUsername()) &&
-                userRepository.findByUsername(userDTO.getUsername()).isPresent()) {
-            throw new UsernameAlreadyExistsException("Username already exists");
+        try{
+            // This code checks if the new username is different from the existing username and if a user with the new username already exists.
+            // If true, throw an error.
+            // This code ensures a user does not update their username to a username that already exists with another user.
+            if (!userEntity.getUsername().equals(userDTO.getUsername()) &&
+                    userRepository.findByUsername(userDTO.getUsername()).isPresent()) {
+                throw new UsernameAlreadyExistsException("Username already exists");
+            }
+
+            // If the user exists, I can set their new username.
+            userEntity.setUsername(userDTO.getUsername());
+
+            // checks if the password is not null and the user's password exists in the DB.
+            if (userDTO.getPassword() != null && !userDTO.getPassword().isEmpty()) {
+                // user can update the password.
+                userEntity.setPassword(userDTO.getPassword());
+            }
+
+            // save the updated user in the DB using userRepository.save() method.
+            User updatedUser = userRepository.save(userEntity);
+
+            // convert the updatedUser into a userDTO object.
+            return convertUserEntityToUserDTO(updatedUser);
         }
-
-        // If the user exists, I can set their new username.
-        userEntity.setUsername(userDTO.getUsername());
-
-        // checks if the password is not null and the user's password exists in the DB.
-        if (userDTO.getPassword() != null && !userDTO.getPassword().isEmpty()) {
-            // user can update the password.
-            userEntity.setPassword(userDTO.getPassword());
+        catch (Exception e){
+            throw new UserUpdateFailedException("Failed to update user." + e.getMessage());
         }
-
-        // save the updated user in the DB using userRepository.save() method.
-        User updatedUser = userRepository.save(userEntity);
-
-        // convert the updatedUser into a userDTO object.
-        return convertUserEntityToUserDTO(updatedUser);
     }
 
     @Override
     public void deleteUser(Long uId) {
-        // Check if user exists in the DB using the userRepository.existsById(userId) method or else throw an exception.
-        if (!userRepository.existsById(uId)) {
-            throw new UserNotFoundException("User not found");
+        try{
+            // Check if user exists in the DB using the userRepository.existsById(userId) method or else throw an exception.
+            if (!userRepository.existsById(uId)) {
+                throw new UserNotFoundException("User not found");
+            }
+
+            // otherwise delete the user using the userRepository.deleteById() method.
+            userRepository.deleteById(uId);
+        }
+        catch (Exception e){
+            throw new UserDeletionFailedException("Failed to delete user." + e.getMessage());
         }
 
-        // otherwise delete the user using the userRepository.deleteById() method.
-        userRepository.deleteById(uId);
+        
     }
 
 

@@ -11,7 +11,6 @@ import com.eugene.repositories.ProfileRepo;
 import com.eugene.repositories.UserRepo;
 import com.eugene.services.ProfileService;
 import jakarta.transaction.Transactional;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.bind.annotation.PathVariable;
 
@@ -28,7 +27,6 @@ public class ProfileServiceImpl implements ProfileService {
     // I'm creating a dummy user with an ID of 1. The dummy user will be linked to this profile.
     //private static final int uId = 1;
 
-    @Autowired
     public ProfileServiceImpl(final UserRepo userRepo, final ProfileRepo profileRepo){
         this.profileRepo = profileRepo;
         this.userRepo = userRepo;
@@ -49,9 +47,6 @@ public class ProfileServiceImpl implements ProfileService {
        if (profileRepo.findByUser_uId(uId).isPresent()){
            throw new UserProfileAlreadyExistsException("A profile for this user already exists.");
        }
-//        if (profileRepo.findById(pId).isPresent()){
-//            throw new UserProfileAlreadyExistsException("A profile for this user already exists.");
-//        }
         // Takes in the request body(profile details) and converts it to profileEntity to be stored in DB.
         Profile profileEntity = convertProfileDTOProfileEntity(profileDTO);
 
@@ -165,14 +160,9 @@ public class ProfileServiceImpl implements ProfileService {
     // If the profile details, such as height, weight, activity and CalorieGoal details are less than or equal to 0, throw an InvalidProfileDetailsException.
     private void validateProfileDetails(ProfileDTO profileDTO) {
 
-//        if (profileDTO.getHeight() == null || profileDTO.getWeight() == null ||
-//                profileDTO.getActivity() == null || profileDTO.getCalorieGoal() == null) {
-//            throw new IncompleteProfileDetailsException("Profile details are incomplete.");
-//        }
-
         if (profileDTO.getHeight() <= 0 || profileDTO.getWeight() <= 0 ||
                 profileDTO.getActivity() < 1 || profileDTO.getActivity() > 5 ||
-                profileDTO.getCalorieGoal() <= 0) {
+                profileDTO.getCalorieGoal() <= 0 || profileDTO.getGender() == null) {
             throw new InvalidProfileDetailsException("Invalid profile details provided");
         }
     }

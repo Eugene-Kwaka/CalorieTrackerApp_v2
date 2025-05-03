@@ -90,7 +90,7 @@ public class ProfileController {
     @GetMapping
     public ResponseEntity<ProfileDTO> getProfileByUserId(@PathVariable Long uId){
 
-        UserDTO userDTO = userService.getUserById(uId);
+        userService.getUserById(uId);
 
         ProfileDTO profileDTO = profileService.getProfileByUserId(uId);
 
@@ -99,6 +99,7 @@ public class ProfileController {
 
     @GetMapping("/all")
     public ResponseEntity<List<ProfileDTO>> getAllProfiles(@PathVariable Long uId){
+        
         UserDTO userDTO = userService.getUserById(uId);
 
         if (!userDTO.getRole().equals("ADMIN")) {
